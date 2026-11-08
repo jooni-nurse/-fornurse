@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>법규 한 세트 | 2027 간호사 국시</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fb;color:#172341;font:16px/1.6 system-ui,sans-serif}main{width:min(720px,100%);margin:auto;padding:24px 16px 48px}header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:22px}header strong{font-size:20px}small,.muted{color:#54627a}.badge{color:#2649b6;background:#e9eeff;border-radius:20px;padding:4px 12px;font-size:13px;font-weight:700}.card{background:white;border:1px solid #e0e6f2;border-radius:22px;padding:clamp(18px,5vw,34px);box-shadow:0 8px 28px #1d36600a}h1{font-size:clamp(25px,5vw,36px);line-height:1.25;margin:12px 0}h2{font-size:22px;line-height:1.45}button{font:inherit;font-weight:650;color:inherit;cursor:pointer;border:1px solid #cdd7eb;background:white;border-radius:12px;padding:11px 15px}button:focus-visible,a:focus-visible{outline:3px solid #365bf0;outline-offset:3px}button:disabled{cursor:default}button.primary{background:#2549cb;color:white;border-color:#2549cb}button.choice{display:block;width:100%;text-align:left;margin:8px 0}button.selected{border:2px solid #2549cb;background:#eef2ff}button.correct{background:#e5f7ec;border-color:#329369}button.wrong{background:#fff0ed;border-color:#ca6057}.actions,.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.stat{background:#f3f6ff;border-radius:13px;padding:10px 14px;flex:1;min-width:110px}.stat strong{display:block;font-size:23px}.feedback{background:#f1f5ff;border-radius:12px;padding:15px;margin-top:18px}.feedback p{margin:6px 0}progress{width:100%;height:12px;accent-color:#2549cb}footer{margin:18px 0;font-size:13px}footer button{font-size:13px;padding:6px 10px}a{color:#2549cb}#message{color:#8b3e25}
+</style>
+<main>
+<header><strong>법규 한 세트</strong><span class="badge">2027 국시 대비 · 체험판</span></header>
+<section id="app" class="card"></section>
+<footer>
+<div class="actions"><button id="export">기록 내보내기</button><button id="import">기록 불러오기</button></div>
+<input type="file" id="file" accept=".json,application/json" hidden>
+<p id="message" role="status"></p>
+<p class="muted">학습 기록은 이 브라우저에 저장됩니다. 다른 기기로 옮길 때는 기록 파일을 사용하세요.</p>
+</footer>
+</main>
+<script>
+'use strict';
+const sources = {
+  records: ['의료법 시행규칙 제15조제1항', 'https://law.go.kr/LSW/lsLinkCommonInfo.do?lsJoLnkSeq=1013922841'],
+  infection: ['감염병예방법 제11조제3항', 'https://law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1031008151'],
+  insurer: ['국민건강보험법 제14조제1항', 'https://law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1031508751'],
+  review: ['국민건강보험법 제63조제1항', 'https://www.law.go.kr/법령/국민건강보험법/제63조']
+};
+const bank = [];
+function add(id, source, prompt, answer, distractors, explanation, variant) {
+  bank.push({id, source, prompt, answer, distractors, explanation, variant});
+}
+const periods = ['1년','2년','3년','5년','10년'];
+[
+ ['chart','진료기록부','10년'],['rx','처방전','2년'],['surgery','수술기록','10년'],
+ ['nursing','간호기록부','5년'],['copy','사망진단서 부본','3년'],['patient','환자 명부','5년'],
+ ['lab','검사내용 및 검사소견기록','5년'],['image','방사선 영상 및 소견서','5년'],
+ ['midwife','조산기록부','5년']
+].forEach(([id, record, period]) => add(id,'records',record+'의 기본 보존기간은?',period,
+  periods.filter(value=>value!==period),record+'의 기본 보존기간은 '+period+'입니다. 기간 연장은 별도 요건을 충족할 때 적용됩니다.',
+  '보존기간 연장을 적용하지 않을 때, '+record+'는 몇 년 동안 보존해야 하나요?'));
+add('extension','records','계속 진료를 위해 필요한 경우, 기록의 보존기간 연장은 최대 몇 회 가능한가요?','1회',['2회','3회','4회','제한 없음'],'계속적인 진료를 위해 필요한 경우 기본 보존기간의 범위에서 한 번 연장할 수 있습니다.','계속 진료를 위한 기록 보존기간 연장 횟수의 상한은?');
+const deadlines = ['즉시','12시간 이내','24시간 이내','3일 이내','7일 이내'];
+['즉시','24시간 이내','24시간 이내','7일 이내'].forEach((answer,i)=>{
+  const grade = '제'+(i+1)+'급감염병';
+  add('deadline'+i,'infection','법 제11조제3항에 따라 보고를 받은 의료기관의 장이 '+grade+'을 신고해야 하는 기한은?',answer,deadlines.filter(value=>value!==answer),grade+'의 해당 조항상 신고 기한은 '+answer+'입니다. 1급은 즉시, 2·3급은 24시간 이내, 4급은 7일 이내입니다.','감염병병원체 확인기관의 장이 법 제11조제3항에 따른 보고를 받았습니다. '+grade+'의 신고 기한은?');
+});
+add('recipient','infection','법 제11조제3항에 따라 보고를 받은 의료기관의 장의 신고 상대는?','질병관리청장 또는 관할 보건소장',['보건복지부장관 또는 시·도지사','관할 경찰서장 또는 보건소장','관할 시장·군수·구청장','국민건강보험공단 이사장'],'이 조항에서 정한 신고 상대는 질병관리청장 또는 관할 보건소장입니다.','감염병병원체 확인기관의 장이 법 제11조제3항에 따라 신고할 수 있는 상대의 조합은?');
+const institutions=['국민건강보험공단','건강보험심사평가원','질병관리청','국민연금공단','국립중앙의료원'];
+[
+ ['eligibility','insurer','가입자와 피부양자의 자격 관리','가입자 또는 피부양자에 해당하는지 확인하고 자격을 관리하는 업무'],
+ ['premium','insurer','보험료 부과와 징수','건강보험료를 부과하고 거두는 업무'],
+ ['benefits','insurer','보험급여 관리','보험급여를 관리하는 업무'],
+ ['claim','review','요양급여비용 심사','요양기관이 청구한 요양급여비용을 심사하는 업무'],
+ ['quality','review','요양급여 적정성 평가','요양급여가 적정하게 이루어졌는지 평가하는 업무'],
+ ['standard','review','심사기준과 평가기준 개발','요양급여비용 심사와 요양급여 적정성 평가에 쓰는 기준을 개발하는 업무']
+].forEach(([id,source,task,variant])=>{
+  const answer = institutions[source==='insurer'?0:1];
+  add(id,source,task+'를 담당하는 기관은?',answer,institutions.filter(value=>value!==answer),
+    task+'는 '+answer+'의 업무입니다. 공단은 자격·보험료·보험급여를 관리하고, 심평원은 비용을 심사하고 적정성을 평가합니다.',
+    variant+'를 맡는 기관은?');
+});
+
+Object.assign(sources,{
+  localPlan:['지역보건법 제7조','https://law.go.kr/법령/지역보건법/제7조'],
+  localEval:['지역보건법 제9조','https://law.go.kr/법령/지역보건법/제9조'],
+  center:['지역보건법 제10조','https://law.go.kr/법령/지역보건법/제10조'],
+  transfer:['응급의료에 관한 법률 제11조','https://law.go.kr/법령/응급의료에관한법률/제11조'],
+  directive:['연명의료결정법 제12조','https://law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1031800623'],
+  dying:['연명의료결정법 제16조','https://www.law.go.kr/LSW/lsSideInfoP.do?docCls=jo&joBrNo=00&joNo=0016&lsiSeq=270417&urlMode=lsScJoRltInfoR'],
+  execution:['연명의료결정법 제19조','https://law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1015268253'],
+  retention:['연명의료결정법 제20조','https://law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1015051359']
+});
+[
+ ['plan-cycle','localPlan','지역보건의료계획의 수립 주기는?','4년',['1년','2년','3년','5년'],'지역보건의료계획은 4년마다 수립하고, 그에 따른 시행계획은 매년 수립합니다.','시장이 새로운 지역보건의료계획을 수립했다. 이 기본 계획은 몇 년마다 수립해야 하나요?'],
+ ['annual-plan','localPlan','지역보건의료계획에 따른 연차별 시행계획은 얼마나 자주 수립해야 하나요?','매년',['2년마다','3년마다','4년마다','5년마다'],'제7조제2항에 따라 연차별 시행계획을 매년 수립합니다.','4년 단위 지역보건의료계획을 이미 수립했다. 그에 따른 연차별 시행계획의 수립 주기는?'],
+ ['plan-owner','localPlan','지역보건의료계획의 수립 주체는?','시·도지사 또는 시장·군수·구청장',['보건복지부장관','질병관리청장','보건소장','국민건강보험공단 이사장'],'지역보건의료계획과 연차별 시행계획 모두 지방자치단체장이 수립합니다.','군의 지역보건의료계획을 수립할 법정 주체를 포함한 조합은?'],
+ ['plan-contents','localPlan','지역보건의료계획에 포함되는 사항은?','지역의 보건의료 수요 측정',['국가시험 합격자 명단','건강보험료 부과 기준','의료인 면허 취소 명단','의약품 품목허가 목록'],'지역 보건의료의 수요, 공급대책, 자원, 전달체계, 통계를 계획에 포함합니다.','시가 새 지역보건의료계획을 작성할 때 조사해야 할 지역 정보는?'],
+ ['eval-province','localEval','도의 지역보건의료계획 시행 결과를 평가할 수 있는 주체는?','보건복지부장관',['도지사','시장','보건소장','질병관리청장'],'보건복지부장관은 시·도 등의 시행 결과를, 시·도지사는 관할 시·군·구의 시행 결과를 평가할 수 있습니다.','A도가 지역보건의료계획을 시행했다. 제9조에 따라 A도의 결과를 평가할 수 있는 사람은?'],
+ ['eval-county','localEval','도의 관할 군이 시행한 지역보건의료계획의 결과를 평가할 수 있는 주체는?','도지사',['군수','보건복지부장관','보건소장','질병관리청장'],'관할 시·군·구의 시행 결과는 시·도지사가 평가할 수 있습니다.','B군이 연차별 시행계획을 수행했다. 제9조에 따라 B군의 시행 결과를 평가할 수 있는 사람은?'],
+ ['center-rule','center','보건소 설치를 정하는 자치법규의 형식은?','해당 지방자치단체의 조례',['시장의 내부 지침','보건복지부장관 고시','질병관리청장 훈령','보건소 운영규정'],'보건소는 대통령령의 기준에 따라 해당 지방자치단체의 조례로 설치합니다.','대통령령의 기준에 따라 보건소를 설치할 때 근거가 되는 지방자치단체 규범은?'],
+ ['transfer-time','transfer','의료인이 해당 기관에서 적절한 응급의료가 어렵다고 판단했다. 언제 이송해야 하나요?','지체 없이',['24시간 이내','3일 이내','7일 이내','월말까지'],'제11조제1항에 따라 지체 없이 적절한 응급의료가 가능한 다른 의료기관으로 이송합니다.','응급환자에게 필요한 처치를 현 기관에서 제공할 수 없다. 적절한 기관으로 이송해야 하는 시점은?'],
+ ['transfer-dest','transfer','현 의료기관에서 적절한 응급의료가 불가능할 때 법이 정한 이송 목적지는?','적절한 응급의료가 가능한 다른 의료기관',['거리만 가장 가까운 기관','환자 주소지 관할 보건소','가장 가까운 의원','환자가 처음 방문했던 기관'],'이송 목적지는 해당 환자에게 적절한 응급의료를 제공할 수 있는 의료기관이어야 합니다.','가까운 기관은 필요한 처치를 할 수 없고 조금 먼 기관은 가능하다. 목적지를 정하는 법적 기준은?'],
+ ['transfer-provider','transfer','제11조제2항에 따라 안전한 이송에 필요한 의료기구와 인력을 제공할 의무가 있는 사람은?','이송하는 의료기관의 장',['관할 보건소장','환자의 보호자','관할 경찰서장','국민건강보험공단 이사장'],'의료기관의 장은 안전한 이송에 필요한 의료기구와 인력을 제공해야 합니다.','A병원에서 B병원으로 응급환자를 이송한다. 출발 기관에서 의료기구와 인력을 제공할 법정 주체는?'],
+ ['transfer-record','transfer','응급환자를 이송받는 의료기관에 무엇을 제공해야 하나요?','진료에 필요한 의무기록',['수납 영수증만','기관의 전체 인력 명단','환자의 진료와 관계없는 감사자료','기관의 운영 예산서'],'이송하는 의료기관의 장은 받는 기관에 진료에 필요한 의무기록을 제공해야 합니다.','B병원이 응급환자를 인계받는다. 이어서 진료할 수 있도록 A병원이 제공해야 할 자료는?'],
+ ['directive-author','directive','사전연명의료의향서는 누가 작성해야 하나요?','작성자 본인',['배우자','등록기관의 장','담당 간호사','가족 대표'],'사전연명의료의향서는 작성자가 직접 작성해야 하며, 본인이 직접 작성하지 않은 경우 효력이 없습니다.','성인이 가족에게 사전연명의료의향서 작성을 부탁했다. 법이 요구하는 작성 주체는?'],
+ ['directive-change','directive','작성자는 사전연명의료의향서를 언제 변경하거나 철회할 수 있나요?','언제든지',['등록 후 7일 이내','등록 후 30일 이내','등록 후 1년 이내','말기 진단을 받은 뒤에만'],'작성자는 언제든지 의사를 바꿀 수 있습니다. 등록기관의 장은 지체 없이 변경 또는 등록 말소를 해야 합니다.','등록한 지 수년이 지난 사람이 사전연명의료의향서를 철회하려 한다. 철회할 수 있는 시점은?'],
+ ['directive-conflict','directive','사전연명의료의향서를 작성·등록한 뒤 연명의료계획서를 다시 작성했다. 기존 의향서의 효력은?','계획서를 작성한 때부터 효력을 잃는다',['두 문서가 언제나 같은 효력을 가진다','등록 후 1년이 지나야 효력을 잃는다','처음부터 효력이 없었던 것으로 본다','환자가 사망할 때까지 효력을 유지한다'],'제12조제8항제4호는 이후 계획서가 작성되면 그때부터 기존 의향서가 효력을 잃는다고 정합니다.','등록된 사전연명의료의향서 이후 연명의료계획서를 새로 작성했다. 기존 의향서가 효력을 잃는 시점은?'],
+ ['dying-normal','dying','법 제16조제1항에 따른 임종과정 판단 주체는?','담당의사와 해당 분야 전문의 1명',['담당의사와 담당 간호사','의료기관의 장과 보호자','담당의사와 환자 가족','윤리위원회 위원장'],'일반적으로 담당의사가 해당 분야 전문의 1명과 함께 판단하고 결과를 기록합니다.','호스피스 예외가 적용되지 않는 환자의 임종과정 여부를 판단하는 두 사람의 조합은?'],
+ ['dying-hospice','dying','호스피스전문기관에서 호스피스를 이용하는 말기환자의 임종과정 판단은 누구의 판단으로 갈음할 수 있나요?','담당의사',['담당 간호사','환자 가족 대표','등록기관의 장','윤리위원회 위원장'],'제16조제2항은 해당 호스피스 이용 말기환자에 대해 담당의사의 판단으로 갈음할 수 있도록 합니다.','제16조제2항의 호스피스 예외를 적용할 때 임종과정 판단을 할 수 있는 사람은?'],
+ ['execution-care','execution','연명의료중단등결정을 이행할 때 법 제19조제2항이 중단을 금지하는 처치는?','산소의 단순 공급',['심폐소생술','혈액 투석','항암제 투여','인공호흡기 착용'],'통증 완화 의료행위와 영양분·물 공급, 산소의 단순 공급은 시행하지 않거나 중단해서는 안 됩니다.','연명의료중단등결정 이행 중 산소 관련 처치 가운데 법이 중단을 금지한 것은?'],
+ ['execution-notify','execution','의료기관의 장은 연명의료중단등결정 이행 결과를 누구에게 통보해야 하나요?','관리기관의 장',['관할 경찰서장','건강보험심사평가원장','시·도지사','관할 소방서장'],'의료기관의 장은 이행 결과를 지체 없이 보건복지부령으로 정하는 바에 따라 관리기관의 장에게 통보해야 합니다.','의료기관의 장이 제19조제5항에 따라 이행 결과를 지체 없이 전달할 상대는?'],
+ ['execution-retention','retention','연명의료중단등결정 및 이행에 관한 법 제20조의 기록 보존기간은?','이행 후 10년',['이행 후 2년','이행 후 3년','이행 후 5년','이행 후 7년'],'의료기관의 장은 제20조에서 정한 기록을 연명의료중단등결정 이행 후 10년 동안 보존합니다.','연명의료중단등결정을 이행했다. 관련 기록 보존기간을 계산할 기준과 기간의 조합은?']
+].forEach(row=>add(...row));
+
+const key = 'nurse-law-2027-v1';
+const app = document.querySelector('#app');
+const message = document.querySelector('#message');
+const byId = Object.fromEntries(bank.map(item=>[item.id,item]));
+const intervals = [600000,86400000,259200000,604800000,1209600000];
+const blank = () => ({version:1, total:0, since:0, cursor:0, records:{}, session:null});
+let state = blank();
+let selected = null;
+function valid(data) {
+  const count = value => Number.isSafeInteger(value) && value >= 0;
+  if (!data || data.version!==1 || ![data.total,data.since,data.cursor].every(count) ||
+      data.since>data.total || data.cursor>=bank.length || !data.records || Array.isArray(data.records) ||
+      typeof data.records!=='object') return false;
+  if (!Object.entries(data.records).every(([id,r])=>Object.hasOwn(byId,id) && r &&
+      Number.isInteger(r.stage) && r.stage>=-1 && r.stage<intervals.length &&
+      count(r.due) && typeof r.pending==='boolean')) return false;
+  const s=data.session;
+  return s===null || (s && ['study','review'].includes(s.mode) && Array.isArray(s.items) &&
+    s.items.length>0 && s.items.length<=10 && new Set(s.items.map(item=>item?.id)).size===s.items.length &&
+    count(s.index) && s.index<=s.items.length && count(s.score) &&
+    s.score<=Math.min(s.index+(s.result?1:0),s.items.length) &&
+    s.items.every(item=>{
+      const q=item && Object.hasOwn(byId,item.id) && byId[item.id];
+      return q && Array.isArray(item.options) && item.options.length===5 &&
+        new Set(item.options).size===5 && item.options.every(x=>[q.answer,...q.distractors].includes(x));
+    }) && (s.result===null || (s.index<s.items.length &&
+      s.items[s.index].options.includes(s.result.answer) && typeof s.result.unsure==='boolean')));
+}
+try {
+  const saved = JSON.parse(localStorage.getItem(key));
+  if (valid(saved)) state=saved;
+} catch { message.textContent='저장된 기록을 읽지 못했습니다. 백업 파일을 불러올 수 있습니다.'; }
+function save() {
+  try { localStorage.setItem(key,JSON.stringify(state)); return true; }
+  catch { message.textContent='이 브라우저에서는 자동 저장을 사용할 수 없습니다. 닫기 전에 기록을 내보내세요.'; return false; }
+}
+function shuffle(values) {
+  const result=[...values];
+  for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+}
+function reviewQueue(now=Date.now()) {
+  return Object.entries(state.records)
+    .filter(([,r])=>r.due<=now || (state.since>=20 && r.pending))
+    .sort((a,b)=>a[1].due-b[1].due).map(([id])=>id);
+}
+function start(mode) {
+  const review=reviewQueue();
+  if(mode==='review' && !review.length) return render();
+  const ids=mode==='review' ? review.slice(0,10) :
+    Array.from({length:10},(_,i)=>bank[(state.cursor+i)%bank.length].id);
+  state.session={mode,items:ids.map(id=>({id,options:shuffle([byId[id].answer,...byId[id].distractors])})),index:0,score:0,result:null};
+  if(mode==='study') state.cursor=(state.cursor+10)%bank.length;
+  selected=null;
+  save(); render(true);
+}
+function submit(unsure) {
+  const s=state.session;
+  if(!s || s.result || s.index>=s.items.length || selected===null) return;
+  const q=byId[s.items[s.index].id];
+  const correct=selected===q.answer;
+  const now=Date.now();
+  const old=state.records[q.id];
+  if(!correct || unsure){
+    state.records[q.id]={stage:-1,due:now+intervals[0],pending:true};
+  }else if(!old || (s.mode==='review' && old.due<=now)){
+    const stage=Math.min((old?.stage??0)+1,intervals.length-1);
+    state.records[q.id]={stage,due:now+intervals[stage],pending:false};
+  }else if(s.mode==='review'){
+    old.pending=false;
+  }
+  if(s.mode==='study'){
+    state.total++;
+    state.since++;
+  }
+  if(correct) s.score++;
+  s.result={answer:selected,unsure};
+  save(); render(true);
+}
+function next() {
+  const s=state.session;
+  if(!s?.result) return;
+  s.index++; s.result=null; selected=null;
+  save(); render(true);
+}
+function home() {
+  const s=state.session;
+  if(s?.mode==='review' && s.index===s.items.length && state.since>=20 &&
+      !Object.values(state.records).some(record=>record.pending)) state.since=0;
+  state.session=null; selected=null; save(); render(true);
+}
+function button(id, action) { document.getElementById(id)?.addEventListener('click',action); }
+function render(focus=false) {
+  const s=state.session;
+  const queued=reviewQueue().length;
+  if(!s){
+    app.innerHTML=`<span class="badge">오프라인 학습</span><h1 tabindex="-1">오늘 법규 10문제</h1>
+    <p class="muted">한 문제씩 풀고 바로 해설을 확인해요. 틀리거나 헷갈린 개념은 복습에 다시 나와요.</p>
+    <div class="stats"><div class="stat"><strong>${state.total}</strong>학습한 문제</div><div class="stat"><strong>${queued}</strong>지금 복습 가능</div><div class="stat"><strong>${bank.length}</strong>연습 문항</div></div>
+    <div class="actions"><button id="study" class="${queued?'':'primary'}">10문제 시작</button>${queued?'<button id="review" class="primary">복습 시작</button>':''}</div>
+    <p class="muted">일반 학습 20문제 후 오답 복습을 열어요. 오답과 헷갈린 문제는 약 10분 후에도 복습할 수 있어요.</p>
+    <p class="muted">의료법 시행규칙 · 감염병예방법 · 국민건강보험법 · 지역보건법 · 응급의료법 · 연명의료결정법 일부 조항으로 구성한 체험판</p>`;
+    button('study',()=>start('study')); button('review',()=>start('review'));
+  }else if(s.index===s.items.length){
+    const title=s.mode==='study'?'한 세트 완료':'복습 완료';
+    app.innerHTML=`<h1 tabindex="-1">${title}</h1><p>${s.items.length}문제 중 <strong>${s.score}문제</strong>를 맞혔어요.</p>
+    <p class="muted">${queued?'지금 복습할 문제 '+queued+'개가 있어요.':'복습 시간이 되면 홈에서 다시 풀 수 있어요.'}</p>
+    <div class="actions"><button id="home" class="primary">홈으로</button>${queued?'<button id="review">복습 시작</button>':''}</div>`;
+    button('home',home); button('review',()=>start('review'));
+  }else{
+    const item=s.items[s.index], q=byId[item.id], result=s.result;
+    const correct=result?.answer===q.answer;
+    const [law,url]=sources[q.source];
+    app.innerHTML=`<small>${s.mode==='study'?'일반 학습':'복습'} · ${s.index+1} / ${s.items.length}</small>
+    <progress max="${s.items.length}" value="${s.index+(result?1:0)}" aria-label="풀이 진행률"></progress>
+    <h2 tabindex="-1">${s.mode==='review'?q.variant:q.prompt}</h2>
+    <div>${item.options.map((option,i)=>{
+      const style=result?(option===q.answer?'correct':option===result.answer?'wrong':''):(option===selected?'selected':'');
+      const mark=result?(option===q.answer?' · 정답':option===result.answer?' · 내 답':''):'';
+      return `<button class="choice ${style}" id="choice${i}" ${result?'disabled':'aria-pressed="'+(option===selected)+'"'}>${i+1}. ${option}${mark}</button>`;
+    }).join('')}</div>
+    ${result?`<div class="feedback" role="status"><strong>${correct?(result.unsure?'정답 · 복습에 추가':'정답이에요'):'오답 · 복습에 추가'}</strong>
+    <p>${q.explanation}</p><small>근거 · <a href="${url}" target="_blank" rel="noopener">${law}</a></small></div>
+    <div class="actions"><button id="next" class="primary">${s.index+1===s.items.length?'결과 보기':'다음 문제'}</button></div>`:
+    `<div class="actions"><button id="submit" class="primary" ${selected===null?'disabled':''}>정답 확인</button>
+    <button id="unsure" ${selected===null?'disabled':''}>헷갈렸어요 · 채점</button></div>`}`;
+    if(!result){
+      item.options.forEach((option,i)=>button('choice'+i,()=>{
+        selected=option; render(); document.getElementById('choice'+i).focus();
+      }));
+      button('submit',()=>submit(false)); button('unsure',()=>submit(true));
+    }
+    button('next',next);
+  }
+  if(focus) app.querySelector('h1,h2')?.focus();
+}
+button('export',()=>{
+  const url=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}));
+  const link=document.createElement('a');
+  link.href=url; link.download='nurse-law-record.json'; link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+const file=document.querySelector('#file');
+button('import',()=>file.click());
+file.addEventListener('change',async()=>{
+  const source=file.files[0];
+  file.value='';
+  if(!source) return;
+  try{
+    if(source.size>100000) throw Error();
+    const incoming=JSON.parse(await source.text());
+    if(!valid(incoming)) throw Error();
+    if((state.total || state.session) && !confirm('현재 학습 기록을 이 백업으로 바꿀까요?')) return;
+    state=incoming; selected=null;
+    if(save()) message.textContent='학습 기록을 불러왔습니다.';
+    render(true);
+  }catch{message.textContent='이 앱에서 내보낸 올바른 학습 기록 파일을 선택해 주세요.';}
+});
+render();
+setInterval(()=>{if(!state.session) render();},30000);
+</script>
+</html>
